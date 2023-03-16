@@ -1,0 +1,6 @@
+SPDXVersion: SPDX-2.1
+    PackageName: ESMFold
+    PackageHomePage: https://github.com/mit-ll/ESMFold
+    PackageOriginator: MIT Lincoln Laboratory
+    PackageCopyrightText: 2023 Massachusetts Institute of Technology
+    PackageLicenseDeclared: GPL-2.0-only

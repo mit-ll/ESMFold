@@ -1,0 +1,176 @@
+Bootstrap: docker
+From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+# **Authors:** Darrell O. Ricke, Ph.D. (Darrell.Ricke@ll.mit.edu)
+#              Adam Michaleas          (Adam.Micheas@ll.mit.edu)
+# 
+# **RAMS request ID 1022407**
+# 
+# **Overview:**
+# This is a Singularity container of Evolutionary Scale Modeling (ESM) / ESMFold tool - https://github.com/facebookresearch/esm
+# 
+# **Citation:** None
+# 
+# **Disclaimer:**
+# DISTRIBUTION STATEMENT A. Approved for public release. Distribution is unlimited.
+# 
+# This material is based upon work supported by the Department of the Air Force under 
+# Air Force Contract No. FA8702-15-D-0001. Any opinions, findings, conclusions or 
+# recommendations expressed in this material are those of the author(s) and do not 
+# necessarily reflect the views of the Department of the Air Force.
+# 
+# © 2023 Massachusetts Institute of Technology.
+# 
+# Subject to FAR52.227-11 Patent Rights - Ownership by the contractor (May 2014)
+# 
+# The software/firmware is provided to you on an As-Is basis
+# 
+# Delivered to the U.S. Government with Unlimited Rights, as defined in DFARS 
+# Part 252.227-7013 or 7014 (Feb 2014). Notwithstanding any copyright notice, 
+# U.S. Government rights in this work are defined by DFARS 252.227-7013 or 
+# DFARS 252.227-7014 as detailed above. Use of this work other than as specifically 
+# authorized by the U.S. Government may violate any copyrights that exist in this work.
+#
+# **License:**
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# ESMFold machine learning Singularity recipe
+
+%setup
+  # The ${SINGULARITY_ROOTFS} is key to make these directories in the correct location.
+  mkdir -p ${SINGULARITY_ROOTFS}/usr/local/Software/
+  mkdir -p ${SINGULARITY_ROOTFS}/usr/local/cuda/
+  mkdir -p ${SINGULARITY_ROOTFS}/usr/local/cuda/include/
+  mkdir -p ${SINGULARITY_ROOTFS}/usr/local/cuda/lib64/
+  mkdir -p ${SINGULARITY_ROOTFS}/S/
+  mkdir -p ${SINGULARITY_ROOTFS}/io/
+
+%files
+  dependencies/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz /S/
+  dependencies/FastaEsmFold.py /S/
+
+%post
+  echo "The post section has executed."
+
+  apt -o Acquire::https::No-Cache=True -o Acquire::http::No-Cache=True update
+
+  apt-get update
+
+  ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+  export DEBIAN_FRONTEND=noninteractive
+  DEBIAN_FRONTEND=noninteractive
+  echo 12 > input.txt
+  echo 12 >> input.txt
+  DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata < input.txt
+
+  dpkg-reconfigure --frontend noninteractive tzdata
+  
+  # Set time zone
+  ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get install -y tzdata
+  dpkg-reconfigure --frontend noninteractive tzdata
+  
+  apt-get -y install build-essential coreutils
+  apt-get -y install wget bzip2 git g++ gfortran libreadline6-dev libncurses5-dev xorg-dev libpng-dev libbz2-dev liblzma-dev libpcre3-dev make libcairo2-dev libgtk2.0-dev libcurl4-openssl-dev
+  apt-get -y install libxml2 libxml2-dev libjpeg-dev
+  apt-get -y install locales libcurl4-nss-dev
+  apt-get -y install language-pack-en language-pack-en-base 
+  apt-get -y install git curl unzip bc tabix
+  apt-get -y install libssl-dev libgit2-dev libssh2-1-dev
+  apt-get -y install python3 gcc zip python3-dev 
+  apt-get -y install zlib1g zlib1g-dev libbz2-dev liblzma-dev pigz libncurses5-dev
+  apt-get -y install libreadline-dev cmake vim
+  apt-get -y install cuda
+  apt-get -y install nvidia-gds
+  apt-get clean
+  locale-gen "en_US.UTF-8"
+
+  export FORCE_CUDA="1"
+  export CUDA_VISIBLE_DEVICES=0
+  export PATH=/usr/local/cuda/bin:$PATH
+  export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+  # Setup CUDA libraries
+  cd /S/
+  tar -xvf cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
+  cp cudnn-linux-x86_64-8.6.0.163_cuda11-archive/include/cudnn*.h /usr/local/cuda/include/
+  cp cudnn-linux-x86_64-8.6.0.163_cuda11-archive/lib/libcudnn* /usr/local/cuda/lib64/
+  chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn*
+
+  apt install -y aria2
+  apt install -y hmmer   # jackhmmer
+
+  # Install pip
+  curl https://bootstrap.pypa.io/pip/3.6/get-pip.py -o get-pip.py
+  export SETUPTOOLS_USE_DISTUTILS=local
+  python3 get-pip.py
+
+  cd ${SINGULARITY_ROOTFS}/S/
+
+  # Install Conda
+  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /S/miniconda.sh
+  bash /S/miniconda.sh -b -p /S/miniconda/
+  export PATH="/S/miniconda/bin/:$PATH"
+  conda init bash
+
+  conda install -c conda-forge -c bioconda mmseqs2  # https://github.com/soedinglab/mmseqs2
+  conda install -c conda-forge -c bioconda hhsuite  # https://github.com/soedinglab/hh-suite
+
+  # Install AWS
+  cd /S
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  /S/aws/install
+
+  # Git LFS - large file system extensions
+  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
+
+  python3 -m pip install numpy
+  python3 -m pip install scipy
+  python3 -m pip install omegaconf
+  python3 -m pip install ml_collections
+  python3 -m pip install dm-tree
+  python3 -m pip install Bio
+  python3 -m pip install einops
+  python3 -m pip install biotite
+  python3 -m pip install matplotlib
+
+  python3 -m pip install torch
+  python3 -m pip install fair-esm
+  python3 -m pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
+
+  # python3 -m pip install 'openfold @ git+https://github.com/aqlaboratory/openfold.git'
+  export CUDA_HOME=/usr/local/cuda
+  cd /S/
+  git clone https://github.com/doricke/Software-Toolboxes.git
+  cp Software-Toolboxes/OpenPython/*.py /S/
+
+  git clone https://github.com/aqlaboratory/openfold.git
+  cd openfold
+  conda env create --file environment.yml
+  bash scripts/install_third_party_dependencies.sh
+  bash scripts/activate_conda_env.sh
+  python3 setup.py install
+  bash scripts/install_hh_suite.sh
+
+  chmod 777 *.py
+
+%environment
+  export PATH=.:/S/:/S/miniconda/bin:/Data/PyRosetta/:/Data/RoseTTAFold/:$PATH
+  export DEBIAN_FRONTEND=noninterative
+  export PATH=/usr/local/cuda/bin:$PATH
+  export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+  export PYTHONPATH=.:/S/Software-Toolboxes/OpenPython:$PYTHONPATH
+
+%runscript
+  cd /io/
+  python /S/FastaEsmFold.py "$@"
