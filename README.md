@@ -44,9 +44,14 @@ GNU General Public License for more details.
 
 
 **To build:** 
-
-    singularity build esmfold.sif esmfold.def
-
+```
+    singularity build --sandbox esmfold esmfold.def
+    singularity shell --nv --writable -B esm/:/io/ esmfold
+    cd /io
+    ./openfold.sh
+    exit
+    singularity build esmfold.sif esmfold
+```
 **To run:** 
 
     singularity run -B io/:/io/ esmfold.sif <name.fasta>

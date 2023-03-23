@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+From: ubuntu:latest
 
 # **Authors:** Darrell O. Ricke, Ph.D. (Darrell.Ricke@ll.mit.edu)
 #              Adam Michaleas          (Adam.Micheas@ll.mit.edu)
@@ -50,11 +50,11 @@ From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
   mkdir -p ${SINGULARITY_ROOTFS}/usr/local/cuda/
   mkdir -p ${SINGULARITY_ROOTFS}/usr/local/cuda/include/
   mkdir -p ${SINGULARITY_ROOTFS}/usr/local/cuda/lib64/
+# mkdir -p ${SINGULARITY_ROOTFS}/usr/local/anaconda3/
   mkdir -p ${SINGULARITY_ROOTFS}/S/
   mkdir -p ${SINGULARITY_ROOTFS}/io/
 
 %files
-  dependencies/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz /S/
   dependencies/FastaEsmFold.py /S/
 
 %post
@@ -89,18 +89,24 @@ From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
   apt-get -y install python3 gcc zip python3-dev 
   apt-get -y install zlib1g zlib1g-dev libbz2-dev liblzma-dev pigz libncurses5-dev
   apt-get -y install libreadline-dev cmake vim
-  apt-get -y install cuda
-  apt-get -y install nvidia-gds
   apt-get clean
   locale-gen "en_US.UTF-8"
 
   export FORCE_CUDA="1"
   export CUDA_VISIBLE_DEVICES=0
+  export CUDA_HOME=/usr/local/cuda-11.8
   export PATH=/usr/local/cuda/bin:$PATH
   export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
+# cd /S/
+# wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda_11.7.0_515.43.04_linux.run
+# chmod +x cuda_11.7.0_515.43.04_linux.run
+# echo 'accept' > input.txt
+# ./cuda_11.7.0_515.43.04_linux.run --silent
+
   # Setup CUDA libraries
   cd /S/
+  wget https://developer.download.nvidia.com/compute/redist/cudnn/v8.6.0/local_installers/11.8/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
   tar -xvf cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
   cp cudnn-linux-x86_64-8.6.0.163_cuda11-archive/include/cudnn*.h /usr/local/cuda/include/
   cp cudnn-linux-x86_64-8.6.0.163_cuda11-archive/lib/libcudnn* /usr/local/cuda/lib64/
@@ -117,9 +123,9 @@ From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
   cd ${SINGULARITY_ROOTFS}/S/
 
   # Install Conda
-  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /S/miniconda.sh
-  bash /S/miniconda.sh -b -p /S/miniconda/
-  export PATH="/S/miniconda/bin/:$PATH"
+  wget https://repo.anaconda.com/archive/Anaconda3-2023.03-Linux-x86_64.sh -O /S/anaconda.sh
+  bash /S/anaconda.sh -b -p /usr/local/anaconda3/
+  export PATH="/usr/local/anaconda3/bin/:$PATH"
   conda init bash
 
   conda install -c conda-forge -c bioconda mmseqs2  # https://github.com/soedinglab/mmseqs2
@@ -143,6 +149,7 @@ From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
   python3 -m pip install einops
   python3 -m pip install biotite
   python3 -m pip install matplotlib
+  python3 -m pip install torch
 
   python3 -m pip install torch
   python3 -m pip install fair-esm
@@ -153,16 +160,6 @@ From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
   cd /S/
   git clone https://github.com/doricke/Software-Toolboxes.git
   cp Software-Toolboxes/OpenPython/*.py /S/
-
-  git clone https://github.com/aqlaboratory/openfold.git
-  cd openfold
-  conda env create --file environment.yml
-  bash scripts/install_third_party_dependencies.sh
-  bash scripts/activate_conda_env.sh
-  python3 setup.py install
-  bash scripts/install_hh_suite.sh
-
-  chmod 777 *.py
 
 %environment
   export PATH=.:/S/:/S/miniconda/bin:/Data/PyRosetta/:/Data/RoseTTAFold/:$PATH
